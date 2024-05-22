@@ -8,7 +8,7 @@ from database_handler import DatabaseHandler
 from streamlit_interface import initialize_session_state, display_chat, add_user_message, add_assistant_message
 
 # Streamlitアプリのタイトルを設定する
-st.title("チェスト デッド 月歩 レッツゴー 戦闘")
+st.title("チェスト")
 
 # セッション状態の初期化
 initialize_session_state()
