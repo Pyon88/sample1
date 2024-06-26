@@ -1,55 +1,87 @@
 import streamlit as st
-from openai import OpenAI
+import pandas as pd
 
-# 必要なモジュールのインポート
-from openai_client import OpenAIClient
-from serializer import serialize
-from database_handler import DatabaseHandler
-from streamlit_interface import initialize_session_state, display_chat, add_user_message, add_assistant_message
+# エクセルファイルのパス
+EXCEL_FILE = 'playlist_data.xlsx'
 
-# Streamlitアプリのタイトルを設定する
-st.title("チェスト")
+# エクセルファイルを読み込む関数
+def load_data(file):
+    df = pd.read_excel(file)
+    return df
 
-# セッション状態の初期化
-initialize_session_state()
+# アプリのタイトル
+st.title('音楽プレイリスト作成')
 
-# これまでのメッセージを表示
-display_chat()
+# サイドバーにファイルアップローダーを追加
+uploaded_file = st.sidebar.file_uploader("エクセルファイルをアップロードしてください", type=["xlsx"])
 
-# ユーザーが新しいメッセージを入力できるテキストボックス
-if prompt := st.chat_input("質問やメッセージを入力してください"):
-    # ユーザーメッセージを追加
-    add_user_message(prompt)
+# エクセルファイルがアップロードされたらデータを読み込む
+if uploaded_file:
+    df = load_data(uploaded_file)
+    st.write("読み込まれたデータ：")
+    st.dataframe(df)
+else:
+    st.write("エクセルファイルをアップロードしてください。")
+
+# 入力フォームを作成
+st.header('新しい曲を追加')
+
+with st.form("entry_form"):
+    曲名 = st.text_input("曲名")
+    作品シリーズ = st.selectbox("作品シリーズ", ["シャニマス", "学マス", "Liella!", "蓮ノ空"])
+
+    col1, col2 = st.columns(2)
+    with col1:
+        リリース日_from = st.date_input("リリース日（開始）")
+    with col2:
+        リリース日_to = st.date_input("リリース日（終了）")
+
+    歌唱メンバー = st.text_input("歌唱メンバー")
     
-    # OpenAI クライアントの初期化と埋め込み生成
-    openai_client = OpenAIClient(model="text-embedding-3-large")
-    query_embedding = openai_client.generate_embedding(prompt)
-    serialized_embedding = serialize(query_embedding)
+    気分の選択肢 = ["喜び", "悲しみ", "期待", "怒り", "驚き", "恐れ", "信頼", "安心", "感謝", "興奮", "冷静", "不思議", "幸福", "リラックス", "尊敬", "勇気", "後悔", "恥", "嫉妬", "苦しみ", "感動", "悩み", "希望"]
+    気分 = None
+    col1, col2 = st.columns(2)
+    with col1:
+        気分 = st.radio("気分", 気分の選択肢[:len(気分の選択肢)//2])
+    with col2:
+        if not 気分:
+            気分 = st.radio("気分", 気分の選択肢[len(気分の選択肢)//2:])
+    
+    歌詞の一部の単語 = st.text_area("歌詞の一部の単語")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        曲の長さ_以上 = st.number_input("曲の長さ（何分以上）", min_value=0, step=1)
+    with col2:
+        曲の長さ_以下 = st.number_input("曲の長さ（何分以下）", min_value=0, step=1)
+    with col3:
+        曲の長さ_分台 = st.number_input("曲の長さ（何分台）", min_value=0, step=1)
+    
+    # フォーム送信ボタン
+    submitted = st.form_submit_button("追加")
 
-    # データベースの操作
-    db_handler = DatabaseHandler("example_vec.db")
-    db_handler.connect()
-    results = db_handler.search_recipes(serialized_embedding)
-    db_handler.close()
+    if submitted:
+        new_data = {
+            "曲名": [曲名],
+            "作品シリーズ": [作品シリーズ],
+            "リリース日（開始）": [リリース日_from],
+            "リリース日（終了）": [リリース日_to],
+            "歌唱メンバー": [歌唱メンバー],
+            "気分": [気分],
+            "歌詞の一部の単語": [歌詞の一部の単語],
+            "曲の長さ（何分以上）": [曲の長さ_以上],
+            "曲の長さ（何分以下）": [曲の長さ_以下],
+            "曲の長さ（何分台）": [曲の長さ_分台]
+        }
+        new_df = pd.DataFrame(new_data)
+        
+        if uploaded_file:
+            df = df.append(new_df, ignore_index=True)
+        else:
+            df = new_df
 
-    # レシピ検索結果をセッションに追加
-    message = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
-    message.insert(
-        0,
-        {
-            "role": "system",
-            "content": f"# レシピ検索結果\n {results} \nこれはレシピ検索結果です。これに基づいて質問に答えます。レシピ検索結果がない場合は、「データにありません」を出力します。",
-        },
-    )
-
-    # OpenAI APIを使用してアシスタントの応答を取得
-    client = OpenAI()
-    stream = client.chat.completions.create(
-        model=st.session_state["openai_model"],
-        messages=message,
-        stream=True,
-    )
-    response = st.write_stream(stream)
-
-    # アシスタントメッセージを追加
-    add_assistant_message(response)
+        # エクセルファイルに保存
+        df.to_excel(EXCEL_FILE, index=False)
+        st.success('曲が追加されました！')
+        st.write("更新されたデータ：")
+        st.dataframe(df)
