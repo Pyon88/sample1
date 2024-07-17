@@ -12,9 +12,6 @@ for sheet_name, df in sheets.items():
     df_list.append(df)
 all_data = pd.concat(df_list, ignore_index=True)
 
-# 列名を表示して確認する
-st.write("データフレームの列名:", all_data.columns)
-
 # リリース日列をdatetime型に変換
 if 'リリース日' in all_data.columns:
     all_data['リリース日'] = pd.to_datetime(all_data['リリース日'], errors='coerce')
@@ -43,15 +40,7 @@ length_range = st.slider(
 moods = ["喜び", "悲しみ", "期待", "怒り", "驚き", "恐れ", "信頼", "安心", "感謝", "興奮", "冷静", "不思議",
          "幸福", "リラックス", "尊敬", "勇気", "後悔", "恥", "嫉妬", "苦しみ", "感動", "悩み", "希望"]
 
-# 気分選択を2列に分けて表示
-col1, col2 = st.columns(2)
-with col1:
-    mood1 = st.radio("気分を選択 (1)", moods[:12])
-
-with col2:
-    mood2 = st.radio("気分を選択 (2)", moods[12:])
-
-mood = mood1 if mood1 else mood2
+mood = st.selectbox("気分を選択", moods)
 
 # フィルタリング処理
 if 'リリース日' in all_data.columns:
@@ -64,6 +53,9 @@ if 'リリース日' in all_data.columns:
         (all_data['気分'].str.contains(mood, na=False))
     ]
 
+    # 必要な列のみ表示
+    result_df = filtered_df[['曲名', '歌唱メンバー']]
+
     # 結果を表示
     st.write("検索結果:")
-    st.dataframe(filtered_df)
+    st.table(result_df)

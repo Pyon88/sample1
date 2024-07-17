@@ -12,9 +12,6 @@ for sheet_name, df in sheets.items():
     df_list.append(df)
 all_data = pd.concat(df_list, ignore_index=True)
 
-# 列名を表示して確認する
-st.write("データフレームの列名:", all_data.columns)
-
 # リリース日列をdatetime型に変換
 if 'リリース日' in all_data.columns:
     all_data['リリース日'] = pd.to_datetime(all_data['リリース日'], errors='coerce')
@@ -45,13 +42,18 @@ moods = ["喜び", "悲しみ", "期待", "怒り", "驚き", "恐れ", "信頼"
 
 # 気分選択を2列に分けて表示
 col1, col2 = st.columns(2)
+
 with col1:
-    mood1 = st.radio("気分を選択 (1)", moods[:12])
+    mood1 = st.radio("気分を選択 (1)", moods[:12], key='mood1')
 
 with col2:
-    mood2 = st.radio("気分を選択 (2)", moods[12:])
+    mood2 = st.radio("気分を選択 (2)", moods[12:], key='mood2')
 
-mood = mood1 if mood1 else mood2
+# どちらか一方のラジオボタンが選択された場合の処理
+if mood1:
+    mood = mood1
+else:
+    mood = mood2
 
 # フィルタリング処理
 if 'リリース日' in all_data.columns:
